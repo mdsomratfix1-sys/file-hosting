@@ -1,4 +1,4 @@
-// Telegram বট: ফাইল পাঠালে সেভ হয়, শেয়ার লিংক ফেরত দেয়। Long-polling ব্যবহার (কোনো ডোমেইন লাগে না)।
+
 const crypto = require('crypto');
 const db = require('./db');
 const tg = require('./telegram');
@@ -26,13 +26,25 @@ function welcome(tid) {
     `সর্বোচ্চ ফাইল সাইজ: ${MAX_MB} MB`;
 }
 
-async function saveAttachment(chatId, tid, a) {
+async function saveAttachment(chatId, tid, a, msgIdForCopy) {
   const user = db.userByTelegram(tid);
   if (!user) return reply(chatId, `ফাইল সেভ করতে আগে ওয়েবসাইটে রেজিস্টার করুন।\nআপনার টেলিগ্রাম আইডি: <code>${tid}</code>`);
   if (user.banned) return reply(chatId, 'আপনার অ্যাকাউন্ট বন্ধ করা আছে।');
   if (a.size && a.size > MAX_BYTES) return reply(chatId, `⚠️ ফাইল বড়। সর্বোচ্চ ${MAX_MB} MB।`);
+
   const name = cleanName(a.name);
   const code = newCode();
+
+  // Telegram Bot-এ আসা ফাইল Permanent Channel-এ কপি
+  if (tg.PERMANENT_CHANNEL_ID) {
+    try {
+      await tg.copyMessage(tg.PERMANENT_CHANNEL_ID, chatId, msgIdForCopy);
+      console.log('Permanent backup copied:', name);
+    } catch (e) {
+      console.error('Permanent copy failed:', e.message);
+    }
+  }
+
   db.insertFile(user.id, name, a.mime || 'application/octet-stream', a.size || 0, kindOf(a.mime), a.file_id, null, code, Date.now());
   return reply(chatId, `✅ সেভ হয়েছে: <b>${tg.esc(name)}</b>\n🔗 ${FRONTEND_URL}/#/f/${code}`);
 }
@@ -59,7 +71,7 @@ async function handle(msg) {
   }
 
   const att = attachmentOf(msg);
-  if (att) return saveAttachment(chatId, tid, att);
+  if (att) return saveAttachment(chatId, tid, att, msg.message_id);
   return reply(chatId, 'ফাইল পাঠান, অথবা /help লিখুন।');
 }
 
