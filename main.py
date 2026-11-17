@@ -13,7 +13,7 @@ import yt_dlp
 BOT_TOKEN = os.getenv("BOT_TOKEN", "")
 PORT = int(os.getenv("PORT", 10000))
 DOWNLOAD_DIR = Path(os.getenv("DOWNLOAD_DIR", "/tmp/downloads"))
-MAX_FILE_SIZE = 49 * 1024 * 1024  # ~49MB safe limit for Bot API
+MAX_FILE_SIZE = 49 * 1024 * 1024  # \~49MB safe limit for Bot API
 # =================================================
 
 DOWNLOAD_DIR.mkdir(parents=True, exist_ok=True)
@@ -60,9 +60,19 @@ def download_video(url: str) -> tuple[str | None, str | None]:
         'no_warnings': True,
         'noplaylist': True,
         'merge_output_format': 'mp4',
-        'retries': 3,
-        'fragment_retries': 3,
+        'retries': 5,
+        'fragment_retries': 5,
         'socket_timeout': 30,
+        # TikTok / anti-bot fixes
+        'http_headers': {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Referer': 'https://www.tiktok.com/',
+        },
+        'extractor_args': {
+            'tiktok': {
+                'api_hostname': 'api16-normal-c-useast1a.tiktokv.com',
+            }
+        },
     }
 
     try:
@@ -83,7 +93,7 @@ def download_video(url: str) -> tuple[str | None, str | None]:
             return None, "ফাইল পাওয়া যায়নি"
     except Exception as e:
         logger.error(f"Download error: {e}")
-        return None, str(e)[:150]
+        return None, str(e)[:180]
 
 
 async def handle_url(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -119,7 +129,7 @@ async def handle_url(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if file_size > MAX_FILE_SIZE:
             await status_msg.edit_text(
                 f"❌ ভিডিওটা খুব বড় ({file_size / 1024 / 1024:.1f} MB)।\n"
-                f"Bot API-তে সর্বোচ্চ ~50MB আপলোড করা যায়।"
+                f"Bot API-তে সর্বোচ্চ \~50MB আপলোড করা যায়।"
             )
             return
 
@@ -176,7 +186,7 @@ def main():
 
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("help", help_command))
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_url))
+    application.add_handler(MessageHandler(filters.TEXT & \~filters.COMMAND, handle_url))
 
     # Health server + Bot একসাথে চালানো
     loop = asyncio.new_event_loop()
