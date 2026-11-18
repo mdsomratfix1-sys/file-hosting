@@ -1,5 +1,0 @@
-python-telegram-bot==21.6
-yt-dlp[default,curl-cffi]
-aiohttp
-python-dotenv
-curl_cffi
